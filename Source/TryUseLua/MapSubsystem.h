@@ -90,6 +90,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "MapSubsystem")
 	FVector2D GetVector2DFromPoint(int Index);
+
+	UFUNCTION(BlueprintCallable, Category = "MapSubsystem")
+	bool MapPointIsValid(int x, int y);
+
+	UFUNCTION(BlueprintCallable, Category = "MapSubsystem")
+	int GetPointFromVector2D(int x, int y);
 private:
 	int fx[4] = { 0, 0, -1, 1};
 	int fy[4] = { 1, -1, 0, 0};

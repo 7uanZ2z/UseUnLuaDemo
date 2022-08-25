@@ -27,6 +27,12 @@ int32 UMapSubsystem::AddScore(int32 BaseScore)
 	return Score;
 }
 
+bool UMapSubsystem::MapPointIsValid(int x, int y) {
+	if (x < 0 || y < 0) return false;
+	if (y >= width || x >= length) return false;
+	return true;
+}
+
 AActor* UMapSubsystem::GetActorInLevelByName(FString Name)
 {
 	TArray<AActor*> OutActors;
@@ -82,19 +88,28 @@ TArray<FVector2D> UMapSubsystem::SetNewMap(int l, int w, int mainLength)
 		dfs(PointList);
 	}
 
-	for (unsigned int i = 0; i < length; ++i) {
-		for (unsigned int j = 0; j < width; ++j) {
-			if(MapMatrix[i].a[j].vis == true)
-				UE_LOG(LogTemp, Warning, TEXT("%d %d %d %d %d %d %d"), i, j, MapMatrix[i].a[j].depth,
-					MapMatrix[i].a[j].up, MapMatrix[i].a[j].down, MapMatrix[i].a[j].left, MapMatrix[i].a[j].right);
-		}
-	}
-
 	TreeLength = length * width;
 	TreeArray.Init(0, length * width + 5);
 	PointValue.Init(0, length * width + 5);
-	UE_LOG(LogTemp, Warning, TEXT("%d"), TreeArray.Num())
+	UE_LOG(LogTemp, Warning, TEXT("TreeArray.Num() %d"), TreeArray.Num());
 
+	for (unsigned int i = 0; i < length; ++i) {
+		for (unsigned int j = 0; j < width; ++j) {
+			if (MapMatrix[i].a[j].IsMain == true) {
+				UE_LOG(LogTemp, Warning, TEXT("%d %d %d %d %d %d %d"), i, j, MapMatrix[i].a[j].depth,
+					MapMatrix[i].a[j].up, MapMatrix[i].a[j].down, MapMatrix[i].a[j].left, MapMatrix[i].a[j].right);
+				for (int k = 0; k < 4; ++k) {
+					int now_x = i + fx[k];
+					int now_y = i + fy[k];
+					if (MapPointIsValid(now_x, now_y)) {
+						SetPointValue(1, 1);
+					}
+				}
+			}
+		}
+	}
+
+	/*
 	SetPointValue(1, 1);
 	SetPointValue(2, 2);
 	SetPointValue(5, 5);
@@ -107,6 +122,7 @@ TArray<FVector2D> UMapSubsystem::SetNewMap(int l, int w, int mainLength)
 
 	for(int i = 0; i <= 18; ++i)
 		UE_LOG(LogTemp, Warning, TEXT("getpointfromValue(%d) %d"), i, GetPointFromValue(i));
+	*/
 	//UE_LOG(LogTemp, Warning, TEXT("GetAllPointSum() %d"), GetAllPointSum());
 	//UE_LOG(LogTemp, Warning, TEXT("%d"), MapMatrix[i].a[j]);
 
@@ -245,4 +261,8 @@ FVector2D UMapSubsystem::GetVector2DFromPoint(int Index)
 	}
 	UE_LOG(LogTemp, Warning, TEXT("UMapSubsystem::GetPointValue : Bad Index!"));
 	return -1;
+}
+
+int UMapSubsystem::GetPointFromVector2D(int x, int y) {
+	
 }

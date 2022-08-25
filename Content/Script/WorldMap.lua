@@ -78,7 +78,7 @@ function WorldMap:InitiallizeMap(Player)
     self.m_Wnd:SetCharacterPosition(PlayerPosition.X, PlayerPosition.Y, 
             self:GetMapHeight(), self:GetMapWidth())
 
-    local v = MapSubSystem.NewRandomMap(20, 20, 10)
+    local v = MapSubSystem.NewRandomMap(20, 20, 15)
     for i = 1, v:Length() do
         local nowpoint = v:Get(i)
         self.m_Wnd:DrawMapBlock(nowpoint.X, nowpoint.Y, self.m_MapBlockX, self.m_MapBlockY)
