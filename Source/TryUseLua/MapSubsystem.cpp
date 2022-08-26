@@ -29,7 +29,7 @@ int32 UMapSubsystem::AddScore(int32 BaseScore)
 
 bool UMapSubsystem::MapPointIsValid(int x, int y) {
 	if (x < 0 || y < 0) return false;
-	if (y >= width || x >= length) return false;
+	if (y >= (int)width || x >= (int)length) return false;
 	return true;
 }
 
@@ -59,12 +59,12 @@ TArray<FVector2D> UMapSubsystem::SetNewMap(int l, int w, int mainLength)
 	FMapPointData initPointData;
 	initPointData.vis = false;
 	initPointData.IsMain = false;
+	initPointData.depth = -1;
 	initPointData.up = false;
 	initPointData.down = false;
 	initPointData.left = false;
 	initPointData.right = false;
 	initPointData.DirectValue.Init(0, 4);
-	initPointData.Value = 0;
 	for (unsigned int i = 0; i < length; ++i) {
 		MapMatrix.Add(FMapArray());
 		for (unsigned int j = 0; j < width; ++j) {
@@ -95,36 +95,129 @@ TArray<FVector2D> UMapSubsystem::SetNewMap(int l, int w, int mainLength)
 
 	for (unsigned int i = 0; i < length; ++i) {
 		for (unsigned int j = 0; j < width; ++j) {
-			if (MapMatrix[i].a[j].IsMain == true) {
-				UE_LOG(LogTemp, Warning, TEXT("%d %d %d %d %d %d %d"), i, j, MapMatrix[i].a[j].depth,
-					MapMatrix[i].a[j].up, MapMatrix[i].a[j].down, MapMatrix[i].a[j].left, MapMatrix[i].a[j].right);
+			if (MapMatrix[i].a[j].IsMain == true && MapMatrix[i].a[j].depth != 1 && MapMatrix[i].a[j].depth != mainLength) {
+				int nowx, nowy;
+				bool Conn[4] = {false};
+				Conn[0] = MapMatrix[i].a[j].up;
+				Conn[1] = MapMatrix[i].a[j].down;
+				Conn[2] = MapMatrix[i].a[j].left;
+				Conn[3] = MapMatrix[i].a[j].right;
+				int sum = 0;
 				for (int k = 0; k < 4; ++k) {
-					int now_x = i + fx[k];
-					int now_y = i + fy[k];
-					if (MapPointIsValid(now_x, now_y)) {
-						SetPointValue(1, 1);
+					if (Conn[k] == false) {
+						nowx = i + fx[k];
+						nowy = j + fy[k];
+						if (MapPointIsValid(nowx, nowy)) {
+							if (MapMatrix[nowx].a[nowy].IsMain)
+								MapMatrix[i].a[j].DirectValue[k] = 0;
+							else MapMatrix[i].a[j].DirectValue[k] = 1;
+						}
 					}
+					sum += MapMatrix[i].a[j].DirectValue[k];
 				}
+				//UE_LOG(LogTemp, Warning, TEXT("%d %d %d"), i, j, sum);
+				SetPointValue(GetPointFromVector2D(i, j), sum);
 			}
 		}
 	}
+	
+	PrintMap(mainLength);
 
-	/*
-	SetPointValue(1, 1);
-	SetPointValue(2, 2);
-	SetPointValue(5, 5);
-	SetPointValue(7, 4);
-	SetPointValue(10, 5);
-	for (int i = 0; i <= 10; ++i)
-		UE_LOG(LogTemp, Warning, TEXT("pointvalue[i] %d"), PointValue[i]);
+	int BranchSum = 8;
+	for (int T = 1; T <= BranchSum; ++T) {
+		int PointSampling = FMath::RandRange(1, GetAllPointSum());
+		int nowPoint = GetPointFromValue(PointSampling);
+		FVector2D vec = GetVector2DFromPoint(nowPoint);
+		UE_LOG(LogTemp, Warning, TEXT("vec.X %d  vec.Y %d"), (int)vec.X, (int)vec.Y);
+		int sum = 0;
+		for (int k = 0; k < 4; ++k) {
+			sum += MapMatrix[vec.X].a[vec.Y].DirectValue[k];
+		}
 
-	UE_LOG(LogTemp, Warning, TEXT("getpointfromValue(%d) %d"), 10, GetPointFromValue(10));
+		int DirectSampling = FMath::RandRange(1, sum);
+		int di = -1;
+		int DirectSum[4] = { 0 };
+		DirectSum[0] = MapMatrix[vec.X].a[vec.Y].DirectValue[0];
+		for (int i = 1; i <= 3; ++i) {
+			DirectSum[i] = DirectSum[i - 1] + MapMatrix[vec.X].a[vec.Y].DirectValue[i];
+		}
+		if (DirectSampling <= DirectSum[0]) {
+			di = 0;
+		}else if (DirectSampling <= DirectSum[1]) {
+			di = 1;
+		}else if (DirectSampling <= DirectSum[2]) {
+			di = 2;
+		}else if (DirectSampling <= DirectSum[3]) {
+			di = 3;
+		}
+		/*
+		for (int i = 0; i < 4; ++i) {
+			UE_LOG(LogTemp, Warning, TEXT("i %d  DirectValue %d"), i, MapMatrix[vec.X].a[vec.Y].DirectValue[i]);
+		}
+		UE_LOG(LogTemp, Warning, TEXT("DirectSampling %d  sum %d di %d"), DirectSampling, sum, di);*/
 
-	for(int i = 0; i <= 18; ++i)
-		UE_LOG(LogTemp, Warning, TEXT("getpointfromValue(%d) %d"), i, GetPointFromValue(i));
-	*/
-	//UE_LOG(LogTemp, Warning, TEXT("GetAllPointSum() %d"), GetAllPointSum());
-	//UE_LOG(LogTemp, Warning, TEXT("%d"), MapMatrix[i].a[j]);
+		int nowx = vec.X + fx[di];
+		int nowy = vec.Y + fy[di];
+
+		if (MapMatrix[nowx].a[nowy].vis) {
+			//UE_LOG(LogTemp, Warning, TEXT("new branch has visit %d  %d"), nowx, nowy);
+			++BranchSum;
+		}
+
+		MapMatrix[nowx].a[nowy].vis = true;
+		MapMatrix[nowx].a[nowy].depth = FMath::Min(MapMatrix[nowx].a[nowy].depth, MapMatrix[vec.X].a[vec.Y].depth + 1);
+		if (di == 0) {
+			MapMatrix[vec.X].a[vec.Y].up = true;
+			MapMatrix[nowx].a[nowy].down = true;
+		}else if (di == 1) {
+			MapMatrix[vec.X].a[vec.Y].down = true;
+			MapMatrix[nowx].a[nowy].up = true;
+		}else if (di == 2) {
+			MapMatrix[vec.X].a[vec.Y].left = true;
+			MapMatrix[nowx].a[nowy].right = true;
+		}else if (di == 3) {
+			MapMatrix[vec.X].a[vec.Y].right = true;
+			MapMatrix[nowx].a[nowy].left = true;
+		}
+
+		SetPointValue(GetPointFromVector2D(vec.X, vec.Y), PointValue[GetPointFromVector2D(vec.X, vec.Y)] - MapMatrix[vec.X].a[vec.Y].DirectValue[di]);
+		MapMatrix[vec.X].a[vec.Y].DirectValue[di] = 0;
+
+		bool Conn[4] = { false };
+		Conn[0] = MapMatrix[nowx].a[nowy].up;
+		Conn[1] = MapMatrix[nowx].a[nowy].down;
+		Conn[2] = MapMatrix[nowx].a[nowy].left;
+		Conn[3] = MapMatrix[nowx].a[nowy].right;
+		sum = 0;
+		for (int k = 0; k < 4; ++k) {
+			MapMatrix[nowx].a[nowy].DirectValue[k] = 0;
+			if (Conn[k] == false) {
+				int newnowx = nowx + fx[k];
+				int newnowy = nowy + fy[k];
+				if (MapPointIsValid(newnowx, newnowy)) {
+					//UE_LOG(LogTemp, Warning, TEXT("Valid newnox %d newnowy %d"), newnowx, newnowy);
+					MapMatrix[nowx].a[nowy].DirectValue[k] = 2;
+					if (MapMatrix[newnowx].a[newnowy].vis) {
+						MapMatrix[nowx].a[nowy].DirectValue[k] = 1;
+					}
+				}
+			}
+			sum += MapMatrix[nowx].a[nowy].DirectValue[k];
+		}
+
+		int newnowx = nowx + fx[di];
+		int newnowy = nowy + fy[di];
+		if (!Conn[di] && MapPointIsValid(newnowx, newnowy)) {
+			sum += 4 - MapMatrix[nowx].a[nowy].DirectValue[di];
+			MapMatrix[nowx].a[nowy].DirectValue[di] = 4;
+			
+		}
+
+		SetPointValue(GetPointFromVector2D(nowx, nowy), sum);
+
+		FVector2D NowPoint(nowx + 1, nowy + 1);
+		PointList.Emplace(NowPoint);
+	}
 
 	return PointList;
 }
@@ -162,19 +255,19 @@ void UMapSubsystem::dfs(TArray<FVector2D> &PointList) {
 		MapMatrix[NowPoint.X - 1].a[NowPoint.Y - 1].depth = MapMatrix[Point.X - 1].a[Point.Y - 1].depth + 1;
 		dfs(PointList);
 		if (mainlength == PointList.Num()) {
-			if (NowPoint.Y == Point.Y + 1) {
+			if (NowPoint.X == Point.X - 1) {
 				MapMatrix[Point.X - 1].a[Point.Y - 1].up = true;
 				MapMatrix[NowPoint.X - 1].a[NowPoint.Y - 1].down = true;
 			}
-			else if (NowPoint.X == Point.X - 1) {
+			else if (NowPoint.X == Point.X + 1) {
 				MapMatrix[Point.X - 1].a[Point.Y - 1].down = true;
 				MapMatrix[NowPoint.X - 1].a[NowPoint.Y - 1].up = true;
 			}
-			else if (NowPoint.X == Point.X + 1) {
+			else if (NowPoint.Y == Point.Y - 1) {
 				MapMatrix[Point.X - 1].a[Point.Y - 1].left = true;
 				MapMatrix[NowPoint.X - 1].a[NowPoint.Y - 1].right = true;
 			}
-			else if (NowPoint.Y == Point.Y - 1) {
+			else if (NowPoint.Y == Point.Y + 1) {
 				MapMatrix[Point.X - 1].a[Point.Y - 1].right = true;
 				MapMatrix[NowPoint.X - 1].a[NowPoint.Y - 1].left = true;
 			}
@@ -257,12 +350,31 @@ int UMapSubsystem::GetAllPointSum()
 FVector2D UMapSubsystem::GetVector2DFromPoint(int Index)
 {
 	if (1 <= Index && Index <= TreeLength) {
-		return FVector2D(((Index + 1) / width) + 1, ((Index + 1) % width) + 1);
+		return FVector2D(((Index - 1) / width), ((Index - 1) % width));
 	}
 	UE_LOG(LogTemp, Warning, TEXT("UMapSubsystem::GetPointValue : Bad Index!"));
-	return -1;
+	return FVector2D(-1, -1);
 }
 
 int UMapSubsystem::GetPointFromVector2D(int x, int y) {
-	
+	return x * width + y + 1;
+}
+
+void UMapSubsystem::PrintMap(int mainLength){
+	for (unsigned int i = 0; i < length; ++i) {
+		FString ss = "";
+		for (unsigned int j = 0; j < width; ++j) {
+			if (MapMatrix[i].a[j].IsMain == true) {
+				if (MapMatrix[i].a[j].depth == 1)
+					ss += "S ";
+				else if (MapMatrix[i].a[j].depth == mainLength)
+					ss += "E ";
+				else ss += FString::Printf(TEXT("%d "), PointValue[GetPointFromVector2D(i, j)]);
+			}
+			else {
+				ss += "* ";
+			}
+		}
+		UE_LOG(LogTemp, Warning, TEXT("%s"), *ss);
+	}
 }

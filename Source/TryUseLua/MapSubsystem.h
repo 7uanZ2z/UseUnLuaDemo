@@ -31,9 +31,6 @@ struct FMapPointData {
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TArray<int> DirectValue;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	int Value;
 };
 
 USTRUCT(BlueprintType)
@@ -97,8 +94,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "MapSubsystem")
 	int GetPointFromVector2D(int x, int y);
 private:
-	int fx[4] = { 0, 0, -1, 1};
-	int fy[4] = { 1, -1, 0, 0};
+	int fx[4] = { -1, 1, 0, 0};
+	int fy[4] = { 0, 0, -1, 1};
 
 	TArray<FMapArray> MapMatrix;
 	unsigned int length;
@@ -112,6 +109,7 @@ private:
 	int TreeLowbit(int x);
 	void TreeAdd(int x, int v);
 	int TreeGetSum(int x);
+	void PrintMap(int mainLength);
 	
 	int32 Score;
 };
